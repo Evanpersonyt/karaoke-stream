@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Paroles</title>
+  <style>
+    body {
+      margin: 0;
+      background: transparent;
+      color: white;
+      font-size: 28px;
+      font-family: sans-serif;
+      white-space: pre-wrap;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="lyrics">Chargement...</div>
+
+  <script>
+    async function getLyrics() {
+      const res = await fetch('/lyrics');
+      const text = await res.text();
+      document.getElementById('lyrics').innerText = text || "Aucune parole.";
+    }
+
+    setInterval(getLyrics, 1000);
+    getLyrics();
+
+    async function loadLyrics() {
+  try {
+    const response = await fetch("paroles-sync.json");
+    data = await response.json();
+  } catch (e) {
+    data = [];
+  }
+}
+
+  </script>
+</body>
+</html>

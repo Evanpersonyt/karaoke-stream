@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Synchronisation</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      padding: 20px;
+    }
+    #player {
+      width: 640px;
+      height: 360px;
+    }
+    #lyricsBox {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+    }
+    button {
+      padding: 10px;
+      font-size: 16px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 5px;
+    }
+    #urlInputContainer {
+      margin-bottom: 10px;
+    }
+    input[type="text"] {
+      width: 400px;
+      padding: 5px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div id="urlInputContainer">
+      <input type="text" id="videoInput" placeholder="Collez l'URL YouTube ici">
+      <button onclick="loadVideo()">Charger</button>
+    </div>
+    <div id="player"></div>
+    <button onclick="exportJSON()">Exporter</button>
+    <a id="downloadLink" style="display:none">Télécharger</a>
+  </div>
+
+  <div id="lyricsBox">
+    <h3>Paroles</h3>
+    <textarea id="lyricsInput" placeholder="Colle les paroles ici (une ligne par ligne)"></textarea>
+    <button onclick="startSync()">Commencer la synchronisation</button>
+    <ul id="syncList"></ul>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    let player;
+    let lines = [];
+    let syncIndex = 0;
+    let syncData = [];
+    let currentVideoId = "GrAchTdepsU";
+
+    function extractVideoId(url) {
+      const regExp = /(?:youtube\.com\/.*[?&]v=|youtu\.be\/)([^&\n?#]+)/;
+      const match = url.match(regExp);
+      return match && match[1] ? match[1] : null;
+    }
+
+    function loadVideo() {
+      const url = document.getElementById("videoInput").value;
+      const videoId = extractVideoId(url);
+      if (!videoId) {
+        alert("URL YouTube invalide !");
+        return;
+      }
+      currentVideoId = videoId;
+
+      if (player) {
+        player.loadVideoById(videoId);
+      } else {
+        createPlayer(videoId);
+      }
+    }
+
+    function onYouTubeIframeAPIReady() {
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get("v") || currentVideoId;
+      currentVideoId = videoId;
+      createPlayer(videoId);
+    }
+
+    function createPlayer(videoId) {
+      player = new YT.Player('player', {
+        height: '360',
+        width: '640',
+        videoId: videoId,
+        playerVars: {
+          autoplay: 0,
+          controls: 1,
+          rel: 0
+        }
+      });
+    }
+
+    function startSync() {
+      const text = document.getElementById('lyricsInput').value;
+      lines = text.split('\n').filter(l => l.trim() !== '');
+      syncIndex = 0;
+      syncData = [];
+
+      const list = document.getElementById('syncList');
+      list.innerHTML = '';
+      lines.forEach((line, i) => {
+        const li = document.createElement('li');
+        li.textContent = line;
+        const btn = document.createElement('button');
+        btn.textContent = '⌚ Sync';
+        btn.onclick = () => markSync(i);
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    function markSync(i) {
+      const time = player.getCurrentTime();
+      syncData[i] = {
+        time: Math.round(time * 1000) / 1000,
+        line: lines[i]
+      };
+      document.querySelectorAll('#syncList li')[i].style.color = 'green';
+    }
+
+    function exportJSON() {
+      const title = player.getVideoData().title || "video";
+      const filename = title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.json';
+      fetch('/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentVideoId,
+          syncData
+        })
+      }).then(() => alert("Sauvegardé dans " + filename));
+    }
+  </script>
+</body>
+</html>

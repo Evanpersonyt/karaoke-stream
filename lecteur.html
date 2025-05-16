@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Lecteur Playlist</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: black;
+    }
+    #player {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="player"></div>
+
+  <script>
+    let player;
+    let lastSentId = '';
+
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.body.appendChild(tag);
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player("player", {
+        height: "100%",
+        width: "100%",
+        playerVars: {
+          listType: 'playlist',
+          list: 'PLUeMI7oJ3mmDTXSxGCCaIKm3tJWISEdVa', // ← remplace par ta playlist
+          autoplay: 1,
+          controls: 1,
+          rel: 0,
+          modestbranding: 1
+        },
+        events: {
+          onReady: sendVideoData,
+          onStateChange: handleStateChange
+        }
+      });
+    }
+
+    function sendVideoData() {
+      const data = player.getVideoData();
+      const id = data.video_id;
+      const title = data.title;
+
+      if (id && id !== lastSentId) {
+        lastSentId = id;
+
+        fetch("/update-current-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, title })
+        });
+      }
+    }
+
+    function handleStateChange(event) {
+      if (event.data === YT.PlayerState.PLAYING) {
+        sendVideoData();
+      }
+    }
+
+    // Envoie le temps toutes les 200ms
+    setInterval(() => {
+      if (player && player.getCurrentTime) {
+        const time = player.getCurrentTime();
+        fetch('/update-current-time', {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ time })
+        });
+      }
+    }, 200);
+  </script>
+</body>
+</html>

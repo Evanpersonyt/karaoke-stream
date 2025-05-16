@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Afficheur de Paroles</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      font-size: 2em;
+      background: transparent;
+      color: white;
+      text-shadow: 2px 2px 4px black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #line {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="line">Chargement...</div>
+  <div id="debug" style="position: fixed; top: 10px; left: 10px; font-size: 0.6em;"></div>
+
+  <script>
+    let data = [];
+    let currentIndex = 0;
+    let currentVideoId = '';
+    let currentTime = 0;
+
+    async function updateLine(time) {
+      if (!data.length) return;
+      while (currentIndex < data.length - 1 && time >= data[currentIndex + 1].time) {
+        currentIndex++;
+      }
+      document.getElementById("line").textContent = data[currentIndex]?.line || "";
+    }
+
+    async function loadLyrics(videoId) {
+      try {
+        const response = await fetch(`paroles-sync/${videoId}.json`);
+        if (!response.ok) throw new Error("Fichier non trouvé");
+        data = await response.json();
+        currentIndex = 0;
+        document.getElementById("line").textContent = "▶ Paroles chargées";
+      } catch (err) {
+        console.error("Fichier de paroles non trouvé");
+        data = [];
+        document.getElementById("line").textContent = "🎵 Paroles non disponibles";
+      }
+    }
+
+    async function checkVideoChange() {
+      try {
+        const res = await fetch('/current-video');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.id && json.id !== currentVideoId) {
+          currentVideoId = json.id;
+          await loadLyrics(currentVideoId);
+        }
+      } catch (e) {
+        console.error("Erreur récupération vidéo :", e);
+      }
+    }
+
+    async function fetchCurrentTime() {
+      try {
+        const res = await fetch('/current-time');
+        const json = await res.json();
+        currentTime = json.time;
+        document.getElementById("debug").textContent = "⏱️ " + currentTime.toFixed(2);
+      } catch (e) {
+        console.error("Erreur récupération temps :", e);
+      }
+    }
+
+    setInterval(fetchCurrentTime, 200); // récupère le temps depuis le serveur
+    setInterval(() => updateLine(currentTime), 100); // met à jour les paroles
+    setInterval(checkVideoChange, 2000); // vérifie si la vidéo change
+    checkVideoChange(); // au démarrage
+  </script>
+</body>
+</html>
